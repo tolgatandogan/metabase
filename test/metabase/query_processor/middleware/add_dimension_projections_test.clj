@@ -1,12 +1,9 @@
 (ns metabase.query-processor.middleware.add-dimension-projections-test
   (:require [clojure.test :refer :all]
-            [medley.core :as m]
             [metabase.query-processor.middleware.add-dimension-projections :as add-dim-projections]
             [metabase.test :as mt]
             [metabase.test.fixtures :as fixtures]
-            [toucan.hydrate :as hydrate]
-            [metabase.query-processor :as qp]
-            [metabase.util :as u]))
+            [toucan.hydrate :as hydrate]))
 
 (use-fixtures :once (fixtures/initialize :db))
 
