@@ -1,10 +1,10 @@
 (ns metabase.query-processor.middleware.sort-joins
-  (:require [clojure.walk :as walk]
+  (:require [clojure.tools.logging :as log]
+            [clojure.walk :as walk]
             [metabase.mbql.util :as mbql.u]
             [metabase.query-processor.error-type :as error-type]
             [metabase.util :as u]
-            [metabase.util.i18n :refer [tru]]
-            [clojure.tools.logging :as log]))
+            [metabase.util.i18n :refer [tru]]))
 
 (defn- join-dependencies
   "Set of aliases of other joins that this join depends on. (Joins can depend on other joins inside of their
