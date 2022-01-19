@@ -233,31 +233,32 @@
                            :limit    2})]
               (mt/with-native-query-testing-context query
                 (let [results (qp/process-query query)]
-                  (is (= ["ID"          ; 00 PRODUCTS.ID
-                          "EAN"         ; 01 PRODUCTS.EAN
-                          "TITLE"       ; 02 PRODUCTS.TITLE
-                          "CATEGORY"    ; 03 PRODUCTS.CATEGORY
-                          "VENDOR"      ; 04 PRODUCTS.VENDOR
-                          "PRICE"       ; 05 PRODUCTS.PRICE
-                          "RATING"      ; 06 PRODUCTS.RATING
-                          "CREATED_AT"  ; 07 PRODUCTS.CREATED_AT
-                          ;; TODO -- I'm not 100% sure why the actual *REAL* names of the columns don't come back
-                          ;; anywhere in the QP results metadata *at all* but these are the columns they correspond to
-                          "ID_2"         ; 08 Q1__ID
-                          "USER_ID"      ; 09 Q1__USER_ID
-                          "PRODUCT_ID"   ; 10 Q1__PRODUCT_ID
-                          "SUBTOTAL"     ; 11 Q1__SUBTOTAL
-                          "TAX"          ; 12 Q1__TAX
-                          "TOTAL"        ; 13 Q1__TOTAL
-                          "DISCOUNT"     ; 14 Q1__DISCOUNT
-                          "CREATED_AT_2" ; 15 Q1__CREATED_AT_2
-                          "QUANTITY"     ; 16 Q1__QUANTITY
-                          ;; TODO -- I think we're doing an extra join against Products to get Title. We really only
-                          ;; need to do one. This is more titles than we need. At least the query works. Oh well :shrug:
-                          "TITLE_2"     ; 17 PRODUCTS__via__PRODUCT_ID__TITLE
-                          "TITLE_3"     ; 18 Q1__PRODUCTS__via__PRODUCT_ID__TITLE
-                          ]
-                         (map :name (mt/cols results))))
+                  (when (= driver/*driver* :h2)
+                    (is (= ["ID"          ; 00 PRODUCTS.ID
+                            "EAN"         ; 01 PRODUCTS.EAN
+                            "TITLE"       ; 02 PRODUCTS.TITLE
+                            "CATEGORY"    ; 03 PRODUCTS.CATEGORY
+                            "VENDOR"      ; 04 PRODUCTS.VENDOR
+                            "PRICE"       ; 05 PRODUCTS.PRICE
+                            "RATING"      ; 06 PRODUCTS.RATING
+                            "CREATED_AT"  ; 07 PRODUCTS.CREATED_AT
+                            ;; TODO -- I'm not 100% sure why the actual *REAL* names of the columns don't come back
+                            ;; anywhere in the QP results metadata *at all* but these are the columns they correspond to
+                            "ID_2"         ; 08 Q1__ID
+                            "USER_ID"      ; 09 Q1__USER_ID
+                            "PRODUCT_ID"   ; 10 Q1__PRODUCT_ID
+                            "SUBTOTAL"     ; 11 Q1__SUBTOTAL
+                            "TAX"          ; 12 Q1__TAX
+                            "TOTAL"        ; 13 Q1__TOTAL
+                            "DISCOUNT"     ; 14 Q1__DISCOUNT
+                            "CREATED_AT_2" ; 15 Q1__CREATED_AT_2
+                            "QUANTITY"     ; 16 Q1__QUANTITY
+                            ;; TODO -- I think we're doing an extra join against Products to get Title. We really only
+                            ;; need to do one. This is more titles than we need. At least the query works. Oh well :shrug:
+                            "TITLE_2"     ; 17 PRODUCTS__via__PRODUCT_ID__TITLE
+                            "TITLE_3"     ; 18 Q1__PRODUCTS__via__PRODUCT_ID__TITLE
+                            ]
+                           (map :name (mt/cols results)))))
                   ;; these results are clearly a LITTLE broken but I couldn't figure out how to get it working 100% so
                   ;; this will have to do for now until I revisit it.
                   (is (= {"TITLE"      {:remapped_from "PRODUCT_ID"}
