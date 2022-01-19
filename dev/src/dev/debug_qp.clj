@@ -14,6 +14,53 @@
             [metabase.util :as u]
             [toucan.db :as db]))
 
+;;;; [[->sorted-mbql-query-map]]
+
+(def ^:private mbql-clause->sort-order
+  (into {}
+        (map-indexed (fn [i k]
+                       [k i]))
+        [;; top-level keys
+         :database
+         :type
+         :query
+         :native
+         ;; inner-query and join keys
+         :source-table
+         :source-query
+         :source-metadata
+         :alias
+         :joins
+         :expressions
+         :breakout
+         :aggregation
+         :fields
+         :filter
+         :order-by
+         :page
+         :limit
+         :condition
+         :strategy]))
+
+(defn- sorted-mbql-query-map []
+  (sorted-map-by (fn [x y]
+                   (let [x-order (or (mbql-clause->sort-order x) (dec Integer/MAX_VALUE))
+                         y-order (or (mbql-clause->sort-order y) Integer/MAX_VALUE)]
+                     (compare x-order y-order)))))
+
+(defn ->sorted-mbql-query-map
+  "Convert MBQL `query` to a special map type that keeps the keys sorted in the 'preferred' order (e.g. order roughly
+  matches that of SQL, i.e. things like source query and joins come before order by or limit), which is easier to look
+  at (maybe)."
+  [query]
+  (walk/postwalk
+   (fn [form]
+     (if (map? form)
+       (into (sorted-mbql-query-map) form)
+       form))
+   query))
+
+
 ;;;; [[add-names]]
 
 (defn- field-and-table-name [field-id]
@@ -29,35 +76,36 @@
   "Walk a MBQL snippet `x` and add comment forms with the names of the Fields referenced to any `:field` clauses nil
   encountered. Helpful for debugging!"
   [x]
-  (walk/postwalk
-   (fn add-names* [form]
-     (letfn [(add-name-to-field-id [id]
-               (when id
-                 (let [[field-name table-name] (field-and-table-name id)]
-                   (symbol (format "#_\"%s.%s\"" field-name table-name)))))
-             (field-id->name-form [field-id]
-               (list 'do (add-name-to-field-id field-id) field-id))]
-       (mbql.u/replace form
-         [:field (id :guard integer?) opts]
-         [:field id (add-name-to-field-id id) (cond-> opts
-                                                (integer? (:source-field opts))
-                                                (update :source-field field-id->name-form))]
+  (-> (walk/postwalk
+       (fn add-names* [form]
+         (letfn [(add-name-to-field-id [id]
+                   (when id
+                     (let [[field-name table-name] (field-and-table-name id)]
+                       (symbol (format "#_\"%s.%s\"" field-name table-name)))))
+                 (field-id->name-form [field-id]
+                   (list 'do (add-name-to-field-id field-id) field-id))]
+           (mbql.u/replace form
+             [:field (id :guard integer?) opts]
+             [:field id (add-name-to-field-id id) (cond-> opts
+                                                    (integer? (:source-field opts))
+                                                    (update :source-field field-id->name-form))]
 
-         (m :guard (every-pred map? (comp integer? :source-table)))
-         (add-names* (update m :source-table add-table-id-name))
+             (m :guard (every-pred map? (comp integer? :source-table)))
+             (add-names* (update m :source-table add-table-id-name))
 
-         (m :guard (every-pred map? (comp integer? :metabase.query-processor.util.add-alias-info/source-table)))
-         (add-names* (update m :metabase.query-processor.util.add-alias-info/source-table add-table-id-name))
+             (m :guard (every-pred map? (comp integer? :metabase.query-processor.util.add-alias-info/source-table)))
+             (add-names* (update m :metabase.query-processor.util.add-alias-info/source-table add-table-id-name))
 
-         (m :guard (every-pred map? (comp integer? :fk-field-id)))
-         (-> m
-             (update :fk-field-id field-id->name-form)
-             add-names*)
+             (m :guard (every-pred map? (comp integer? :fk-field-id)))
+             (-> m
+                 (update :fk-field-id field-id->name-form)
+                 add-names*)
 
-         ;; don't recursively replace the `do` lists above, other we'll get vectors.
-         (_ :guard (every-pred list? #(= (first %) 'do)))
-         &match)))
-   x))
+             ;; don't recursively replace the `do` lists above, other we'll get vectors.
+             (_ :guard (every-pred list? #(= (first %) 'do)))
+             &match)))
+       x)
+      ->sorted-mbql-query-map))
 
 
 ;;;; [[process-query-debug]]
@@ -387,43 +435,6 @@
 (defn- no-$ [x]
   (mbql.u/replace x [::$ & args] (into [::no-$] args)))
 
-(def ^:private mbql-clause->sort-order
-  (into {}
-        (map-indexed (fn [i k]
-                       [k i]))
-        [;; top-level keys
-         :database
-         :type
-         :query
-         :native
-         ;; inner-query keys
-         :source-table
-         :source-query
-         :source-metadata
-         :joins
-         :expressions
-         :breakout
-         :aggregation
-         :fields
-         :filter
-         :order-by
-         :page
-         :limit
-         ;; join keys
-         :alias
-         :condition
-         :strategy]))
-
-(defn- sorted-mbql-query-map []
-  (sorted-map-by (fn [x y]
-                   (let [x-order (mbql-clause->sort-order x)
-                         y-order (mbql-clause->sort-order y)]
-                     (cond
-                       (and x-order y-order) (compare x-order y-order)
-                       x-order               -1
-                       y-order               1
-                       :else                 (compare (pr-str x) (pr-str y)))))))
-
 (defn- symbolize [form]
   (mbql.u/replace form
     [::-> x y]
@@ -454,7 +465,7 @@
    (to-mbql-shorthand query (query-table-name (:query query))))
 
   ([query table-name]
-   (let [symbolized (-> query (expand table-name) symbolize)
+   (let [symbolized (-> query (expand table-name) symbolize ->sorted-mbql-query-map)
          table-symb (some-> table-name symbol)]
      (if (:query symbolized)
        (list 'mt/mbql-query table-symb (-> (:query symbolized)

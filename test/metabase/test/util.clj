@@ -834,7 +834,7 @@
                                           :name                    (:display_name original)
                                           :type                    :external
                                           :human_readable_field_id (:id remapped)}]
-                (testing (format "With FK remapping %s -> %s" (describe-field original) (describe-field remapped))
+                (testing (u/format-color 'green "\nWith FK remapping %s -> %s" (describe-field original) (describe-field remapped))
                   (thunk)))))
           ;; remap is sequential or map => HRV remap
           (let [values-map (if (sequential? remap)
