@@ -82,7 +82,6 @@
           unique-name (comp (mbql.u/unique-name-generator) :name field)]
       (vec
        (mbql.u/match fields
-         ;; don't match Fields that have been joined from another Table
          [:field (id :guard (every-pred integer? field-id->remapping-dimension)) _]
          (let [dimension (field-id->remapping-dimension id)]
            [&match
