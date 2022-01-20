@@ -258,19 +258,19 @@
                             "TITLE_2"     ; 17 PRODUCTS__via__PRODUCT_ID__TITLE
                             "TITLE_3"     ; 18 Q1__PRODUCTS__via__PRODUCT_ID__TITLE
                             ]
-                           (map :name (mt/cols results)))))
-                  ;; these results are clearly a LITTLE broken but I couldn't figure out how to get it working 100% so
-                  ;; this will have to do for now until I revisit it.
-                  (is (= {"TITLE"      {:remapped_from "PRODUCT_ID"}
-                          "PRODUCT_ID" {:remapped_to "TITLE_3"}
-                          "TITLE_2"    {:remapped_from "PRODUCT_ID"}
-                          "TITLE_3"    {:remapped_from "PRODUCT_ID"}}
-                         (into {}
-                               (comp (map (fn [col]
-                                            (when-let [remaps (not-empty (select-keys col [:remapped_to :remapped_from]))]
-                                              [(:name col) remaps])))
-                                     (filter some?))
-                               (mt/cols results))))
+                           (map :name (mt/cols results))))
+                    ;; these results are clearly a LITTLE broken but I couldn't figure out how to get it working 100% so
+                    ;; this will have to do for now until I revisit it.
+                    (is (= {"TITLE"      {:remapped_from "PRODUCT_ID"}
+                            "PRODUCT_ID" {:remapped_to "TITLE_3"}
+                            "TITLE_2"    {:remapped_from "PRODUCT_ID"}
+                            "TITLE_3"    {:remapped_from "PRODUCT_ID"}}
+                           (into {}
+                                 (comp (map (fn [col]
+                                              (when-let [remaps (not-empty (select-keys col [:remapped_to :remapped_from]))]
+                                                [(:name col) remaps])))
+                                       (filter some?))
+                                 (mt/cols results)))))
                   (is (= [[ ;; PRODUCTS
                            1 "1018947080336" "Rustic Paper Wallet" "Gizmo" "Swaniawski, Casper and Hilll"
                            29.46 4.6 "2017-07-19T19:44:56.582Z"
