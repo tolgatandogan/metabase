@@ -135,7 +135,7 @@
 (defn- add-fk-remaps-one-level
   [{:keys [fields breakout order-by], :as query} remaps]
   ;; make sure the query has actually been preprocessed fully
-  (assert (not (keyword? fields))  (str ":fields should not be a keyword. In " (u/pprint-to-str query)1))
+  (assert (not (keyword? fields)) (str ":fields should not be a keyword. In " (u/pprint-to-str query)))
   ;; fetch remapping column pairs if any exist...
   (if-let [remap-col-tuples (not-empty (create-remap-col-tuples (concat fields breakout)))]
     ;; if they do, update `:fields`, `:order-by` and `:breakout` clauses accordingly and add to the query
