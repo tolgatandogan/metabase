@@ -34,19 +34,41 @@
          :expressions
          :breakout
          :aggregation
+         :condition
          :fields
+         :strategy
          :filter
          :order-by
          :page
-         :limit
-         :condition
-         :strategy]))
+         :limit]))
 
 (defn- sorted-mbql-query-map []
+  ;; stuff in [[mbql-clause->sort-order]] should always get sorted according to that order. Everything else should go at
+  ;; the end, with non-namespaced stuff first and namespaced stuff last; otherwise sort alphabetically
   (sorted-map-by (fn [x y]
-                   (let [x-order (or (mbql-clause->sort-order x) (dec Integer/MAX_VALUE))
-                         y-order (or (mbql-clause->sort-order y) Integer/MAX_VALUE)]
-                     (compare x-order y-order)))))
+                   (let [order   (fn [k]
+                                   (or (mbql-clause->sort-order k)
+                                       (when (and (keyword? k) (namespace k))
+                                         Integer/MAX_VALUE)
+                                       (dec Integer/MAX_VALUE)))
+                         x-order (order x)
+                         y-order (order y)]
+                     (if (= x-order y-order)
+                       (compare (str x) (str y))
+                       (compare x-order y-order))))))
+
+(def ^:dynamic *shorten-namespaced-keywords?*
+  "Whether to shorten something like `:metabase.query-processor.util.add-alias-info/source-table` to
+  `::add/source-table` if an alias exists for the keyword namespace in the current namespace ([[*ns*]])."
+  true)
+
+(defn- alias-for-namespace-in-*ns* [ns-symb]
+  (let [a-namespace (find-ns (symbol ns-symb))]
+    (some
+     (fn [[ns-alias aliased-namespace]]
+       (when (= aliased-namespace a-namespace)
+         ns-alias))
+     (ns-aliases *ns*))))
 
 (defn ->sorted-mbql-query-map
   "Convert MBQL `query` to a special map type that keeps the keys sorted in the 'preferred' order (e.g. order roughly
@@ -55,8 +77,18 @@
   [query]
   (walk/postwalk
    (fn [form]
-     (if (map? form)
+     (cond
+       (map? form)
        (into (sorted-mbql-query-map) form)
+
+       (and *shorten-namespaced-keywords?*
+            (keyword? form)
+            (namespace form))
+       (if-let [ns-alias (alias-for-namespace-in-*ns* (symbol (namespace form)))]
+         (symbol (format "::%s/%s" ns-alias (name form)))
+         form)
+
+       :else
        form))
    query))
 
@@ -455,7 +487,9 @@
 (defn- query-table-name [{:keys [source-table source-query]}]
   (cond
     source-table
-    (str/lower-case (db/select-one-field :name Table :id source-table))
+    (do
+      (assert (integer? source-table))
+      (str/lower-case (db/select-one-field :name Table :id source-table)))
 
     source-query
     (recur source-query)))
