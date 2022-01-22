@@ -3,6 +3,7 @@ import _ from "underscore";
 import { t } from "ttag";
 
 import PinnedItemCard from "metabase/collections/components/PinnedItemCard/PinnedItemCard";
+import EmptyPinnedItemsBanner from "../EmptyPinnedItemsBanner/EmptyPinnedItemsBanner";
 import { Item, Collection, isRootCollection } from "metabase/collections/utils";
 
 import { Container, Grid, SectionHeader } from "./PinnedItemOverview.styled";
@@ -22,7 +23,11 @@ function PinnedItemOverview({ items, collection, onCopy, onMove }: Props) {
     dataset: dataModelItems = [],
   } = _.groupBy(sortedItems, "model");
 
-  return items.length ? (
+  return items.length === 0 ? (
+    <Container>
+      <EmptyPinnedItemsBanner />
+    </Container>
+  ) : (
     <Container data-testid="pinned-items">
       {cardItems.length > 0 && (
         <Grid>
@@ -74,7 +79,7 @@ function PinnedItemOverview({ items, collection, onCopy, onMove }: Props) {
         </div>
       )}
     </Container>
-  ) : null;
+  );
 }
 
 export default PinnedItemOverview;
